@@ -134,15 +134,39 @@ matrix, the rendered candidate and the installed diff.
 Note that smb-zfs *keeps its own state* and syncs Samba to it — the same
 inversion this project rejects. Borrow its seam, not its ownership model.
 
-## Where the project context lives
+## Where the project context lives — read this at session start
 
-The plan driving this work, including milestones, open decisions and the
-reasoning behind the design, is outside this repo:
+The plan driving this work — milestones, open decisions, rejected alternatives,
+and the reasoning behind every design choice above — lives **outside this
+repository**, in the AUSGPC chronicles bundle:
 
-- `~/chronicles/plans/ausgpc-smb-master.md` — § Track B is this module's roadmap
-- `~/chronicles/systems/ausgpc-smb-matrix.toml` — the live matrix
+- `~/chronicles/plans/ausgpc-smb-master.md` — **§ Track B is this module's
+  roadmap.** Milestones B1–B4 define the intended order, and the "one-way rule"
+  states that machine-side work never waits on this module.
+- `~/chronicles/systems/ausgpc-smb-matrix.toml` — the live matrix this module edits
 - `~/chronicles/tools/smb-matrix-gen` — the generator this module drives
+- `~/chronicles/CLAUDE.md` — how that bundle expects to be worked in
 
-Read § Track B before adding features; milestones B1–B4 define the intended
-order, and the "one-way rule" states that the machine-side work never waits on
-this module.
+**Read § Track B before adding features or making architectural decisions.** It
+holds decisions already reasoned through; code written without it re-derives
+them or contradicts them.
+
+**If those paths are unreachable, say so and stop guessing.** The bundle is
+outside this working directory, so a session started without access to it cannot
+see the design. In that case: report it plainly, and treat architectural
+questions as blocked rather than answerable — do not infer an architecture from
+the code in this repo and proceed. That inference looks like work and diverges
+silently.
+
+To grant access, launch with:
+
+```sh
+claude --add-dir ~/chronicles
+```
+
+`.claude/settings.local.json` carries the matching permission rules. It is
+gitignored deliberately — it contains machine-specific paths and must not ship
+to anyone who clones this repository.
+
+The general arrangement, and why it is set up this way, is
+`~/chronicles/meta/chronicle-project-cross-awareness.md`.
