@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="addon">
+  <id>io.github.1ausffm.share_control</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LGPL-2.1-or-later</project_license>
+  <name>Share Control</name>
+  <summary>Manage Samba shares from a declarative access matrix</summary>
+  <description>
+    <p>
+      A Cockpit module for administering Samba shares through a declarative
+      device-by-share access matrix.
+    </p>
+    <p>
+      The matrix file on disk is the source of truth. Share Control renders and
+      edits that file, then invokes the generator which validates the result and
+      installs it — so share policy stays diffable and reviewable in version
+      control, instead of living in a database behind the interface.
+    </p>
+  </description>
+  <extends>org.cockpit_project.cockpit</extends>
+  <launchable type="cockpit-manifest">share-control</launchable>
+  <url type="homepage">https://github.com/1AUSFfM/cockpit-share-control</url>
+  <url type="bugtracker">https://github.com/1AUSFfM/cockpit-share-control/issues</url>
+  <developer id="io.github.1ausffm">
+    <name>Andreas</name>
+  </developer>
+</component>
