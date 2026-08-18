@@ -39,3 +39,6 @@
 
 # Claude Code machine-local settings (paths are specific to one machine)
 .claude/settings.local.json
+
+# VS Code multi-root workspace (contains machine-specific absolute paths)
+*.code-workspace
