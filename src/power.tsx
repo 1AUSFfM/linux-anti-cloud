@@ -1,8 +1,10 @@
 /*
  * SPDX-License-Identifier: LGPL-2.1-or-later
  *
- * Suspend policy surface — Track B milestone B5 of
- * /home/aus/chronicles/plans/ausgpc-smb-master.md
+ * Suspend policy surface — milestone B5.
+ *
+ * The reasoning behind this page lives in the governing plan, outside this
+ * repository; see CLAUDE.md for how to reach it.
  *
  * DESIGN NOTE, and it is the reason this page exists at all:
  * we read **logind**, not our own daemon. The page shows what the machine
