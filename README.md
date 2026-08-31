@@ -99,10 +99,17 @@ the machine is doing.
 | Status (services, clients, binding drift) | not implemented |
 | Snapshots | not implemented |
 
-**Not self-contained yet.** The matrix generator that this module drives is not
-in this repository — it currently lives in the author's own notes bundle.
-Packaging it so a stranger can use the whole thing is unfinished work, and until
-it is done, cloning this repository gives you the front end and not the engine.
+**The engine ships with the front end.** `cli/smb-matrix-gen` — the generator
+that renders your matrix, validates it with `testparm`, and installs it only if
+that passes — is in this repository, with an example matrix at
+`cli/smb-matrix.example.toml`. It is usable on its own, without Cockpit:
+
+```sh
+cli/smb-matrix-gen --matrix cli/smb-matrix.example.toml --diff
+```
+
+It takes `--matrix FILE`, falling back to `$SMB_MATRIX` and then
+`/etc/samba/smb-matrix.toml`.
 
 **No releases, no packages, nothing announced.** It is developed in the open from
 the first commit because that is how the author works, not because it is ready.
@@ -110,6 +117,7 @@ Issues and PRs are welcome but may sit; this serves one machine today.
 
 ## Requirements
 
+- Python 3.11+ (for `cli/smb-matrix-gen`; `tomllib` is stdlib from 3.11)
 - Cockpit 137 or newer
 - Samba
 - Node.js and `npm` for building

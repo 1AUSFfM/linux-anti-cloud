@@ -150,8 +150,14 @@ repository**, in the AUSGPC chronicles bundle:
 - `~/chronicles/plans/ausgpc-smb-master.md` — the machine track this module
   administers. The **one-way rule** lives here: machine-side work never waits
   on this module.
-- `~/chronicles/systems/ausgpc-smb-matrix.toml` — the live matrix this module edits
-- `~/chronicles/tools/smb-matrix-gen` — the generator this module drives
+- `~/chronicles/systems/ausgpc-smb-matrix.toml` — **that machine's** live
+  matrix. It stays in the bundle because it is state, not code; this repository
+  ships `cli/smb-matrix.example.toml` instead.
+
+**The generator lives here now**, in `cli/smb-matrix-gen` — moved out of the
+bundle on 2026-09-01 per `~/chronicles/meta/code-moves-out-when-development-starts.md`,
+so that cloning this repository gives you the engine and not just the front end.
+It takes `--matrix FILE`, then `$SMB_MATRIX`, then `/etc/samba/smb-matrix.toml`.
 - `~/chronicles/CLAUDE.md` — how that bundle expects to be worked in
 
 **Read the governing plan before adding features or making architectural
@@ -165,8 +171,9 @@ in code:**
   a suite of packages. Each `menu` entry in `src/manifest.json` maps to
   `<name>.html` with its own bundle in `build.js`.
 - **The package is `cockpit-share-control`; the GitHub repository is
-  `anti-cloud`.** They differ deliberately — the thesis in the repo name and
-  the README, a searchable functional name for the package.
+  [`linux-anti-cloud`](https://github.com/1AUSFfM/linux-anti-cloud).** They
+  differ deliberately — the thesis in the repo name and the README, a
+  searchable functional name for the package.
 
 **If those paths are unreachable, say so and stop guessing.** The bundle is
 outside this working directory, so a session started without access to it cannot

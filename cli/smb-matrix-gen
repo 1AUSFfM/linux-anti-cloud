@@ -1,0 +1,202 @@
+#!/usr/bin/env python3
+"""smb-matrix-gen — render the AUSGPC SMB access matrix to shares.conf.
+
+The matrix (systems/ausgpc-smb-matrix.toml) is the only place share policy is
+written; /etc/samba/shares.conf is output and must never be hand-edited.
+
+Default run renders a candidate and validates it with testparm — no root, no
+writes outside a temp file. --install then copies it into place and reloads
+Samba, printing both privileged commands before running them (the machine's
+privileged-command disclosure policy applies to tools, not just to humans).
+
+  smb-matrix-gen                  render + validate, print the candidate
+  smb-matrix-gen --diff           also diff the candidate against installed
+  smb-matrix-gen --install        validate, then install and reload
+  smb-matrix-gen --matrix FILE    which matrix to render (or $SMB_MATRIX)
+
+Passthrough (added 2026-08-27). Two escape hatches, both deliberately narrow:
+
+  [globals]              -> rendered ABOVE the first share section
+  [shares.NAME.extra]    -> rendered INSIDE that share
+
+They exist because smb.conf includes shares.conf as the LAST line of [global],
+so anything emitted before the first [section] header lands in [global] -- and,
+being last, silently overrides the posture written above it. That is why both
+carry reserved-key lists rather than passing anything through: the matrix stays
+the authority on access control, and the passthrough cannot become a way round
+it. Underscores in key names become spaces, so deadtime and "vfs objects" can
+both be written naturally in TOML.
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+import tomllib
+from pathlib import Path
+
+# The matrix is DATA and belongs to the host, not to this program. It used to
+# be resolved relative to the source file, which only made sense while this
+# lived inside the chronicles bundle next to a `systems/` directory. Extracting
+# it (2026-09-01) meant parameterising that assumption away -- see the bundle's
+# meta/code-moves-out-when-development-starts.md.
+#
+# Resolution order: --matrix, then $SMB_MATRIX, then the system default.
+DEFAULT_MATRIX = Path("/etc/samba/smb-matrix.toml")
+TARGET = Path("/etc/samba/shares.conf")
+SMBCONF = Path("/etc/samba/smb.conf")
+
+# Keys the matrix itself owns. A share's [extra] may not set these, or policy
+# could be rewritten from a passthrough while the matrix still looked like the
+# source of truth.
+RESERVED_SHARE = {
+    "path", "force user", "hosts allow", "valid users",
+    "read only", "read list", "write list",
+}
+
+# Globals carrying this server's security posture. shares.conf is included as
+# the LAST line of [global], so a passthrough key here WINS over smb.conf --
+# silently. Refuse them; change /etc/samba/smb.conf deliberately instead.
+RESERVED_GLOBAL = {
+    "interfaces", "bind interfaces only", "server role", "server min protocol",
+    "smb ports", "disable netbios", "map to guest", "restrict anonymous",
+    "usershare path", "usershare max shares", "usershare allow guests",
+    "usershare owner only", "include",
+}
+
+
+def fmt(v) -> str:
+    """Render a TOML value the way smb.conf spells it."""
+    if isinstance(v, bool):
+        return "yes" if v else "no"
+    if isinstance(v, (list, tuple)):
+        return " ".join(str(x) for x in v)
+    return str(v)
+
+
+HEADER = """# /etc/samba/shares.conf — GENERATED FILE, DO NOT HAND-EDIT.
+#
+# Rendered from {matrix} by tools/smb-matrix-gen.
+# Hand edits are silently lost on the next generate. Change the matrix instead.
+"""
+
+
+def render(matrix: dict, matrix_path: Path) -> str:
+    out = [HEADER.format(matrix=matrix_path)]
+
+    # [globals] first: these land in [global] because of where the include sits.
+    for k, v in matrix.get("globals", {}).items():
+        key = k.replace("_", " ")
+        if key in RESERVED_GLOBAL:
+            sys.exit(f"error: [globals] may not set {key!r} -- it is part of "
+                     f"this server's posture in {SMBCONF}; change it there")
+        out.append(f"# from [globals] in the matrix\n   {key} = {fmt(v)}\n")
+
+    for name, s in matrix.get("shares", {}).items():
+        rw = list(s.get("rw", []))
+        ro = list(s.get("ro", []))
+        # valid users is the access control; order preserved, duplicates dropped
+        valid = list(dict.fromkeys(rw + ro))
+        if not valid:
+            sys.exit(f"error: share [{name}] grants access to nobody")
+        lines = [f"[{name}]", f"   path = {s['path']}"]
+        lines.append(f"   force user = {s['force_user']}")
+        lines.append(f"   hosts allow = {' '.join(s['hosts'])}")
+        lines.append(f"   valid users = {' '.join(valid)}")
+        if ro:
+            # mixed share: deny by default, and let write list override
+            lines.append("   read only = yes")
+            lines.append(f"   read list = {' '.join(ro)}")
+            lines.append(f"   write list = {' '.join(rw)}")
+        else:
+            lines.append("   read only = no")
+            lines.append(f"   write list = {' '.join(rw)}")
+        for k, v in s.get("extra", {}).items():
+            key = k.replace("_", " ")
+            if key in RESERVED_SHARE:
+                sys.exit(f"error: share [{name}] extra may not set {key!r} -- "
+                         f"the matrix owns it")
+            lines.append(f"   {key} = {fmt(v)}")
+        out.append("\n".join(lines) + "\n")
+    return "\n".join(out)
+
+
+def validate(candidate: Path) -> None:
+    """testparm a full smb.conf that includes the candidate, not the fragment.
+
+    A shares.conf on its own has no [global], so testparm on it alone proves
+    nothing useful — it has to be checked in the context it will be included in.
+    """
+    conf = SMBCONF.read_text()
+    patched, hits = [], 0
+    for line in conf.splitlines():
+        if line.strip().startswith("include") and str(TARGET) in line:
+            patched.append(f"   include = {candidate}")
+            hits += 1
+        else:
+            patched.append(line)
+    if hits != 1:
+        sys.exit(f"error: expected exactly one include of {TARGET} in {SMBCONF}, found {hits}")
+    with tempfile.NamedTemporaryFile("w", suffix=".conf", delete=False) as fh:
+        fh.write("\n".join(patched) + "\n")
+        probe = Path(fh.name)
+    r = subprocess.run(["testparm", "-s", str(probe)], capture_output=True, text=True)
+    probe.unlink()
+    if r.returncode != 0:
+        sys.exit(f"testparm rejected the candidate:\n{r.stderr}{r.stdout}")
+    print(f"testparm: candidate OK ({SMBCONF} + {candidate})")
+
+
+def install(candidate: Path) -> None:
+    cmds = [
+        ["sudo", "-A", "cp", str(candidate), str(TARGET)],
+        ["sudo", "-A", "smbcontrol", "all", "reload-config"],
+    ]
+    print("\nprivileged commands about to run:")
+    for c in cmds:
+        print("  " + " ".join(c))
+    print(f"  -> overwrites {TARGET} (generator output only) and hot-reloads Samba\n")
+    for c in cmds:
+        r = subprocess.run(c)
+        if r.returncode != 0:
+            sys.exit(f"error: command failed ({r.returncode}): {' '.join(c)}")
+    print(f"installed {TARGET} and reloaded Samba")
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--install", action="store_true", help="install and reload after validating")
+    ap.add_argument("--diff", action="store_true", help="diff candidate against installed file")
+    ap.add_argument("--matrix", metavar="FILE",
+                    default=os.environ.get("SMB_MATRIX", str(DEFAULT_MATRIX)),
+                    help=f"matrix to render (default: $SMB_MATRIX or {DEFAULT_MATRIX})")
+    args = ap.parse_args()
+
+    matrix_path = Path(args.matrix).expanduser()
+    if not matrix_path.is_file():
+        sys.exit(f"error: no matrix at {matrix_path}\n"
+                 f"       pass --matrix FILE, or set SMB_MATRIX, or create "
+                 f"{DEFAULT_MATRIX}.\n"
+                 f"       An example matrix ships in this repository as "
+                 f"cli/smb-matrix.example.toml")
+
+    with matrix_path.open("rb") as fh:
+        text = render(tomllib.load(fh), matrix_path)
+
+    with tempfile.NamedTemporaryFile("w", suffix=".shares.conf", delete=False) as fh:
+        fh.write(text)
+        candidate = Path(fh.name)
+    print(f"candidate: {candidate}")
+    validate(candidate)
+
+    if args.diff:
+        print()
+        subprocess.run(["diff", "-u", str(TARGET), str(candidate)])
+
+    if args.install:
+        install(candidate)
+
+
+if __name__ == "__main__":
+    main()

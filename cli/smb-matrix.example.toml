@@ -1,0 +1,61 @@
+# Example SMB access matrix.
+#
+# This file is the SOURCE OF TRUTH for share policy. smb-matrix-gen renders it
+# to a shares.conf fragment, validates that with testparm in the context of your
+# real smb.conf, and installs it only if validation passes. Hand-editing the
+# generated file is the one forbidden move: it is silently lost on the next run.
+#
+#   cli/smb-matrix-gen --matrix cli/smb-matrix.example.toml           # render + validate
+#   cli/smb-matrix-gen --matrix cli/smb-matrix.example.toml --diff     # + diff installed
+#   cli/smb-matrix-gen --matrix cli/smb-matrix.example.toml --install  # + install/reload
+#
+# Or set SMB_MATRIX, or put your matrix at /etc/samba/smb-matrix.toml.
+#
+# smb.conf must contain exactly one line including the generated file, e.g.
+#   include = /etc/samba/shares.conf
+# placed LAST inside [global] -- see the [globals] note below.
+
+# Keys per [shares.NAME]:
+#   path        filesystem path exported under the share name NAME
+#   force_user  every client operation runs as this Unix user
+#   hosts       CIDRs allowed to connect        -> hosts allow
+#   rw          accounts with write access      -> write list
+#   ro          accounts with read-only access  -> read list
+#               valid users is rendered as rw ∪ ro; anyone unlisted is denied.
+#   [shares.NAME.extra]  raw smb.conf keys passed into that share. Underscores
+#               become spaces, so vfs_objects -> "vfs objects". The keys the
+#               matrix owns (path, force user, hosts allow, valid users,
+#               read only, read/write list) are REFUSED -- the passthrough is an
+#               escape hatch, not a way around the access model.
+
+# [globals] passes raw keys into [global]. That works because smb.conf includes
+# the generated file as the LAST line of [global] -- which also means such a key
+# silently OVERRIDES what smb.conf set above it. The generator therefore refuses
+# the ones carrying your server's security posture (interfaces, bind interfaces
+# only, map to guest, restrict anonymous, server min protocol, usershare*).
+[globals]
+# Reap idle sessions after 15 minutes. Safe by construction, per smb.conf(5):
+# "The deadtime only takes effect if the number of open files is zero."
+deadtime = 15
+
+[shares.documents]
+path = "/srv/documents"
+force_user = "fileserver"
+hosts = ["10.0.0.0/24"]
+rw = ["alice", "bob"]
+ro = []
+
+# A mixed share: everyone listed may read, only the rw list may write.
+[shares.archive]
+path = "/srv/archive"
+force_user = "fileserver"
+hosts = ["10.0.0.0/24"]
+rw = ["alice"]
+ro = ["bob"]
+
+# Expose filesystem snapshots as Windows "Previous Versions". Requires the share
+# path to be a snapper-configured subvolume root, and the .snapshots directory
+# to be readable by force_user -- which means SYNC_ACL=yes in the snapper
+# config, not merely ALLOW_USERS. See vfs_snapper(8).
+[shares.documents.extra]
+vfs_objects = "snapper"
