@@ -1,18 +1,63 @@
-# Cockpit Share Control
+# linux-anti-cloud
 
-A [Cockpit](https://cockpit-project.org/) module for administering Samba shares
-through a **declarative device-by-share access matrix**.
+**Pre-alpha. One page works. Not usable as a product yet.** See [Status](#status)
+before investing any time.
 
-## The idea
+A [Cockpit](https://cockpit-project.org/) module that turns a Linux workstation
+into the authoritative home for your own working files — reachable from the
+devices you name, reversible in time, on a machine that is also your desktop and
+therefore has to sleep.
+
+The Cockpit package is called **`cockpit-share-control`**; this repository is
+named for the idea behind it.
+
+## What "anti-cloud" means
+
+Dropbox, OneDrive and Nextcloud solve *"my files everywhere"* by **replicating**
+your data onto a server, then spending their entire complexity budget
+reconciling the copies.
+
+This solves the same problem the other way round: keep **one copy**, on hardware
+you own, and make it *reachable* and *reversible* instead.
+
+**There are no sync conflicts because there is no second copy.** Your laptop is
+a terminal onto the files, not a replica of them. Windows Explorer's *Previous
+Versions* dialog is your undo, served straight from filesystem snapshots.
+
+## What this is not
+
+Stated plainly, because the name invites the wrong guesses:
+
+- **Not remote access.** It serves your LAN. Exposing it to the internet is a
+  decision this project does not make for you.
+- **Not mobile.** SMB on phones is poor. Solving that means replicas, which is
+  the thesis inverted.
+- **Not file sharing with other people.** No links, no external identities, no
+  multi-tenancy.
+- **Not sync.** The absence of a second copy is the feature.
+- **Not a NAS distribution.** TrueNAS and OpenMediaVault are excellent and this
+  is not competing with them. They assume a *dedicated* machine.
+
+## Who this is for
+
+Someone running a **btrfs workstation that doubles as a part-time file server**
+— and who has noticed that every NAS product assumes a machine that is always
+on and does nothing else.
+
+That assumption is where the interesting problems live: the machine must sleep,
+must *not* sleep while someone is working in a share, roams between Wi-Fi
+access points, and shares its snapshot substrate with the operating system.
+
+## The inversion
 
 Most share-management GUIs own the configuration: you edit in the interface, the
 tool writes to a database or to Samba's `net conf` registry, and the resulting
 policy is whatever the tool says it is. There is nothing to review, nothing to
 diff, and nothing to put in version control.
 
-Share Control inverts that. **A matrix file on disk is the source of truth** — a
-small, human-readable table of *device × share → read/write/none*. The module is
-a view and controller over that file:
+This inverts that. **A matrix file on disk is the source of truth** — a small,
+human-readable table of *device × share → read/write/none*. The module is a view
+and controller over that file:
 
 1. it renders the matrix as an editable grid,
 2. it writes your edits back to the matrix file,
@@ -20,17 +65,41 @@ a view and controller over that file:
    `testparm` and installs it only if that passes.
 
 The generator is the single brain and keeps its own validation gate. The module
-never reimplements that logic, and never becomes a second store of policy. If
+never reimplements that logic and never becomes a second store of policy. **If
 the module is uninstalled, the matrix file and the generator remain a complete,
-working console.
+working console.**
 
 That inversion — the GUI serving a diffable file, rather than the file being an
 export of the GUI's database — is the point of the project.
 
+## Report drift, not configuration
+
+A console that renders your *declared* configuration is blind to the failure
+that actually bites: declared and running silently diverge, and **nothing
+errors**. Samba resolves `interfaces =` to addresses once, at startup; an
+address that appears later is skipped with one log line, while the unit stays
+`active`, `testparm` stays clean, and the share is simply not there.
+
+So this module's job is the **difference** between what you declared and what
+the machine is doing.
+
 ## Status
 
-**Early development.** The scaffold is in place; the matrix view is not yet
-implemented. Not usable yet.
+| Page | State |
+|---|---|
+| **Suspend policy** | **works** — reads `logind` live: what is blocking sleep, who is holding it, why |
+| Shares (the matrix grid) | not implemented — placeholder |
+| Status (services, clients, binding drift) | not implemented |
+| Snapshots | not implemented |
+
+**Not self-contained yet.** The matrix generator that this module drives is not
+in this repository — it currently lives in the author's own notes bundle.
+Packaging it so a stranger can use the whole thing is unfinished work, and until
+it is done, cloning this repository gives you the front end and not the engine.
+
+**No releases, no packages, nothing announced.** It is developed in the open from
+the first commit because that is how the author works, not because it is ready.
+Issues and PRs are welcome but may sit; this serves one machine today.
 
 ## Requirements
 
