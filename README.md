@@ -24,6 +24,13 @@ you own, and make it *reachable* and *reversible* instead.
 a terminal onto the files, not a replica of them. Windows Explorer's *Previous
 Versions* dialog is your undo, served straight from filesystem snapshots.
 
+**The travelling client is the hard case, and it is not solved yet.** A laptop
+that leaves the network cannot be a terminal onto files it can no longer reach,
+and the honest options — check out a subtree and check it back in, or accept
+being offline — are a design problem rather than a feature to switch on. It is
+on the roadmap precisely because it is where the one-copy idea is under the most
+pressure.
+
 ## What this is not
 
 Stated plainly, because the name invites the wrong guesses:
