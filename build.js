@@ -95,7 +95,10 @@ function watch_dirs(dir, on_change) {
 const context = await esbuild.context({
     ...!production ? { sourcemap: "linked" } : {},
     bundle: true,
-    entryPoints: ['./src/index.js'],
+    // One bundle per cockpit menu entry. Each entry in src/manifest.json's
+    // "menu" maps to <name>.html here, the pattern cockpit's own systemd
+    // package uses for Overview / Services / Logs from a single package.
+    entryPoints: ['./src/index.js', './src/power-index.js'],
     // Allow external font files which live in ../../static/fonts
     external: ['*.woff', '*.woff2', '*.jpg', '*.svg', '../../assets*'],
     // Move all legal comments to a .LEGAL.txt file
@@ -116,7 +119,8 @@ const context = await esbuild.context({
                 build.onEnd((output, _outputFiles) => {
                     if (output?.errors.length === 0) {
                         fs.copyFileSync('./src/manifest.json', './dist/manifest.json');
-                        fs.copyFileSync('./src/index.html', './dist/index.html');
+                        for (const page of ['index', 'power'])
+                            fs.copyFileSync(`./src/${page}.html`, `./dist/${page}.html`);
                     }
                 });
             }

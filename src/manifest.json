@@ -3,9 +3,24 @@
         "cockpit": "137"
     },
 
-    "tools": {
+    "menu": {
         "index": {
-            "label": "Share Control"
+            "label": "Shares",
+            "order": 10,
+            "keywords": [
+                {
+                    "matches": ["samba", "smb", "share", "cifs", "matrix", "access"]
+                }
+            ]
+        },
+        "power": {
+            "label": "Suspend policy",
+            "order": 20,
+            "keywords": [
+                {
+                    "matches": ["suspend", "sleep", "inhibit", "logind", "power", "wake", "idle"]
+                }
+            ]
         }
     }
 }
