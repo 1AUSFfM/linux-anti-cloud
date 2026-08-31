@@ -140,16 +140,33 @@ The plan driving this work — milestones, open decisions, rejected alternatives
 and the reasoning behind every design choice above — lives **outside this
 repository**, in the AUSGPC chronicles bundle:
 
-- `~/chronicles/plans/ausgpc-smb-master.md` — **§ Track B is this module's
-  roadmap.** Milestones B1–B4 define the intended order, and the "one-way rule"
-  states that machine-side work never waits on this module.
+- `~/chronicles/plans/ausgpc-cockpit-share-control.md` — **this module's
+  governing plan.** Milestones, structure, naming, and the reasoning behind
+  every design decision. **Extracted 2026-09-01** from the file-master plan's
+  § Track B, which had outgrown being a section of another plan.
+- `~/chronicles/meta/anti-cloud-one-copy-authority.md` — **the positioning this
+  project is held against**, including a three-question decision test every
+  proposed feature must answer.
+- `~/chronicles/plans/ausgpc-smb-master.md` — the machine track this module
+  administers. The **one-way rule** lives here: machine-side work never waits
+  on this module.
 - `~/chronicles/systems/ausgpc-smb-matrix.toml` — the live matrix this module edits
 - `~/chronicles/tools/smb-matrix-gen` — the generator this module drives
 - `~/chronicles/CLAUDE.md` — how that bundle expects to be worked in
 
-**Read § Track B before adding features or making architectural decisions.** It
-holds decisions already reasoned through; code written without it re-derives
-them or contradicts them.
+**Read the governing plan before adding features or making architectural
+decisions.** It holds decisions already reasoned through; code written without
+it re-derives them or contradicts them.
+
+**Two structural decisions already made, 2026-09-01 — do not re-litigate them
+in code:**
+
+- **One package, several menu entries** (cockpit's own `systemd` pattern), not
+  a suite of packages. Each `menu` entry in `src/manifest.json` maps to
+  `<name>.html` with its own bundle in `build.js`.
+- **The package is `cockpit-share-control`; the GitHub repository is
+  `anti-cloud`.** They differ deliberately — the thesis in the repo name and
+  the README, a searchable functional name for the package.
 
 **If those paths are unreachable, say so and stop guessing.** The bundle is
 outside this working directory, so a session started without access to it cannot
